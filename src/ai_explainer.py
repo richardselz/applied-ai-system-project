@@ -10,7 +10,13 @@ module degrades gracefully and returns a plain-text fallback.
 """
 
 import os
+from pathlib import Path
 from typing import Dict, List, Tuple
+
+from dotenv import load_dotenv
+
+# Load .env from the project root (one level above src/)
+load_dotenv(Path(__file__).parent.parent / ".env")
 
 _MODEL = "claude-haiku-4-5-20251001"
 
