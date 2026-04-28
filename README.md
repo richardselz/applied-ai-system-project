@@ -1,125 +1,238 @@
-# 🎵 Music Recommender Simulation
+# Applied AI Music Recommender
 
-## Project Summary
+## Base Project
 
-In this project you will build and explain a small music recommender system.
-
-Your goal is to:
-
-- Represent songs and a user "taste profile" as data
-- Design a scoring rule that turns that data into recommendations
-- Evaluate what your system gets right and wrong
-- Reflect on how this mirrors real world AI recommenders
-
-Built with assistance from Claude AI
+This project extends the **Module 3 Music Recommender Simulation** — a weighted scoring system that ranks songs against a user taste profile using four signals: genre (40%), mood (25%), energy proximity (20%), and acousticness (15%). The original system used a hand-crafted 20-song CSV and produced deterministic, rule-based rankings with no AI involvement.
 
 ---
 
-## How The System Works
+## New AI Features
 
-- What features does each `Song` use in your system
-  - The music recommender will use the following attributes:
-    - `energy, tempo_bpm, valence, danceability, acousticness`
-- What information does your `UserProfile` store
-  - At this current step I have not yet gone through what the `UserProfile` will save/store. This will be re-visited later in the assignment.
-- How does your `Recommender` compute a score for each song
-  - The recommender computes a score 40% based on genre, 25% based on mood match, 20% based on energy proximity, and 15% on acousticness preference match.
-- How do you choose which songs to recommend
-  - The system will choose whichever song has the highest score and in case of a tie it will be randomized. 
+| Feature | File | Rubric Item |
+|---|---|---|
+| Kaggle Spotify dataset (114k songs) | `src/data_loader.py` | Data expansion |
+| Claude RAG explanation | `src/ai_explainer.py` | Substantial AI feature + RAG stretch |
+| Multi-step agentic workflow | `src/agent.py` | Agentic workflow stretch |
+| Input / output guardrails | `src/guardrails.py` | Reliability requirement |
+| Evaluation harness | `src/evaluator.py` | Test harness stretch |
 
-![The initial data flow of the music recommender.](screenshots/initial-data-flow.png)
-- Image was produced by mermaid.live
 ---
 
-## Getting Started
+## System Architecture
 
-### Setup
+```
+User Profile (CLI flags or dict)
+         │
+         ▼
+  ┌─────────────┐
+  │  Guardrails │  ← validate energy range, warn on unknown mood/genre
+  └──────┬──────┘
+         │ validated prefs
+         ▼
+  ┌─────────────┐     ┌──────────────────┐
+  │ Data Loader │────▶│  Song Catalog    │
+  │ (Kaggle CSV)│     │  5,000+ tracks   │
+  └─────────────┘     └────────┬─────────┘
+                               │ all songs
+                               ▼
+                      ┌────────────────┐
+                      │  Recommender   │  ← score_song() × N, sort, top-k
+                      └───────┬────────┘
+                              │ top-k (song, score, reasons)
+                              ▼
+                      ┌────────────────┐
+                      │  Guardrails    │  ← validate output count & scores
+                      └───────┬────────┘
+                              │
+                ┌─────────────┴──────────────┐
+                ▼                            ▼
+       ┌────────────────┐          ┌─────────────────┐
+       │  AI Explainer  │          │  Self-Critique   │
+       │  (Claude RAG)  │          │  (agent step 3)  │
+       └───────┬────────┘          └────────┬─────────┘
+               └──────────┬─────────────────┘
+                           ▼
+                      Final Output
+               (ranked songs + AI explanation)
+```
 
-1. Create a virtual environment (optional but recommended):
+Data flow: input → guardrails → data loader → recommender → guardrails → AI explainer → output.
 
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate      # Mac or Linux
-   .venv\Scripts\activate         # Windows
+---
 
-2. Install dependencies
+## Setup
 
 ```bash
+# 1. Create a virtual environment (optional but recommended)
+python -m venv .venv
+source .venv/bin/activate      # Mac/Linux
+.venv\Scripts\activate         # Windows
+
+# 2. Install dependencies
 pip install -r requirements.txt
+
+# 3. (Optional) Set API key for Claude AI explanations
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# 4. The Kaggle dataset is already at data/spotify_kaggle.csv
+#    If you need to re-download it:
+#    https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset
 ```
 
-3. Run the app:
+---
+
+## Running the System
 
 ```bash
-python -m src.main
-```
+# Plain recommender — original 20-song catalog
+python src/main.py
 
-### Running Tests
+# Kaggle catalog (5,000 songs by default)
+python src/main.py --kaggle
 
-Run the starter tests with:
+# Kaggle + Claude AI explanations (requires ANTHROPIC_API_KEY)
+python src/main.py --kaggle --ai
 
-```bash
+# Full agentic workflow — shows all intermediate steps
+python src/main.py --kaggle --agent
+
+# Evaluation harness — prints pass/fail summary
+python src/main.py --kaggle --eval
+
+# Tune catalog size
+python src/main.py --kaggle --max-songs 10000
+
+# Run unit tests
 pytest
 ```
 
-You can add more tests in `tests/test_recommender.py`.
+---
 
-## Initial Output Layout
-![Initial run after scoring](screenshots/initial_output.png)
-## Second Iteration of Output Layout
-![Second iteration of output layout with scoring](screenshots/second_output.png)
-## Final Output Layout
-![Final iteration of output layout with scoring](screenshots/final_output.png)
+## Sample Input / Output
+
+### Example 1 — High-Energy Pop (plain)
+
+```
+========================================================
+  PROFILE: High-Energy Pop
+  TOP 5 RECOMMENDATIONS
+========================================================
+
+  #1  Blinding Lights by The Weeknd
+       Genre: pop | Mood: happy
+       Score: 88/100
+       Why:
+         - genre match (100% match → +40.0% of score)
+         - mood match (100% match → +25.0% of score)
+         - energy proximity (93.0% match → +18.6% of score)
+         - acousticness fit (96.0% match → +14.4% of score)
+```
+
+### Example 2 — Agentic workflow (intermediate steps visible)
+
+```
+[Agent Step 1] Validating user preferences...
+  Input looks good.
+
+[Agent Step 2] Scoring 5,000 songs against profile...
+  Retrieved 5 candidates.
+
+[Agent Step 3] Checking output quality...
+  Critique: Strong top match at 88/100.
+
+[Agent Step 4] Generating AI explanation...
+  Explanation ready.
+
+  AI Explanation:
+    Based on your love of high-energy pop and happy mood, these tracks
+    were chosen for their driving tempo and upbeat valence. "Blinding
+    Lights" leads because it precisely matches your genre and energy
+    target of 0.9, while the remaining picks share a similarly
+    euphoric quality that fits your profile.
+```
+
+### Example 3 — Evaluation harness
+
+```
+============================================================
+  EVALUATION HARNESS
+  6 test cases | catalog size: 5,000 songs
+============================================================
+
+  [PASS] High-Energy Pop
+        ✓ At least 1 result(s) returned (got 5)
+        ✓ Top score 88/100 > 40/100
+        ✓ Output guardrails passed
+
+  [PASS] Adversarial: Invalid Energy
+        ✓ Validation correctly rejected bad input
+
+============================================================
+  RESULT: 18/18 checks passed  ✓ ALL PASS
+============================================================
+```
 
 ---
 
-## User Profile Runs
+## Guardrail Behavior
 
-### Standard Profiles
+| Condition | Behaviour |
+|---|---|
+| `energy` outside `[0.0, 1.0]` | ERROR — pipeline aborts |
+| Unknown `mood` string | WARNING — scoring continues |
+| No `genre` specified | WARNING — genre score skipped |
+| Fewer than 1 recommendation returned | ERROR flagged in output validation |
+| Score outside `[0, 1]` range | WARNING logged |
 
-#### High-Energy Pop
+---
+
+## How the Original System Worked
+
+- `Song` attributes: `energy, tempo_bpm, valence, danceability, acousticness`
+- `UserProfile`: genre, mood, target energy, acoustic preference
+- Scoring: 40% genre + 25% mood + 20% energy proximity + 15% acousticness
+- 20-song hand-built CSV, no AI component
+
+---
+
+## Limitations
+
+- Mood is derived from valence + energy using a simple quadrant rule, which won't always match human perception.
+- The scoring weights are fixed and not learned from user feedback.
+- Recommendations for genres absent from the Kaggle catalog will score low across all four signals.
+
+---
+
+## File Reference
+
+```
+applied-ai-system-final/
+├── data/
+│   ├── songs.csv              # original 20-song catalog
+│   └── spotify_kaggle.csv     # Kaggle Spotify dataset
+├── src/
+│   ├── main.py                # CLI entry point (--kaggle, --ai, --agent, --eval)
+│   ├── recommender.py         # weighted scoring + ranking (base project)
+│   ├── data_loader.py         # Kaggle CSV loader + mood derivation (new)
+│   ├── guardrails.py          # input/output validation (new)
+│   ├── ai_explainer.py        # Claude RAG explanation layer (new)
+│   ├── agent.py               # multi-step agentic workflow (new)
+│   └── evaluator.py           # test harness with pass/fail summary (new)
+├── tests/
+│   └── test_recommender.py
+├── requirements.txt
+├── model_card.md
+└── reflection.md
+```
+
+---
+
+## Screenshots
+
+![Initial data flow](screenshots/initial-data-flow.png)
 ![High-Energy Pop recommendations](screenshots/high-energy_pop.png)
-
-#### Chill Lofi
 ![Chill Lofi recommendations](screenshots/chill_lofi.png)
-
-#### Deep Intense Rock
 ![Deep Intense Rock recommendations](screenshots/deep_intense_rock.png)
-
-### Adversarial / Edge Case Profiles
-
-#### Genre Not in Catalog (Country)
-![Genre not in catalog — country](screenshots/country.png)
-
-#### Conflicting Preferences (Ambient + Intense + High Energy)
+![Genre not in catalog](screenshots/country.png)
 ![Conflicting preferences](screenshots/ambient_intense_high-energy.png)
-
-#### All Midrange
-![All midrange preferences](screenshots/all_midrange.png)
-
----
-
-## Experiments You Tried
-
-- Running six user profiles (three standard, three adversarial) showed that the system works well when genre and mood align with the catalog, but produces compressed, hard-to-differentiate results when the preferred genre is missing or preferences conflict with each other.
-
----
-
-## Limitations and Risks
-
-Summarize some limitations of your recommender.
-
-- The limitation that this recommender currently has is that it does not know what to do with unknown genres and thus the largest portion of the recommender score is missing. 
-
----
-
-## Reflection
-
-Read and complete `model_card.md`:
-
-[**Model Card**](model_card.md)
-
-- Recommenders take the data provided and try to find correlations between each set to provide valueable feedback. This would usuaully be done by supervised learning and not blindly guessing on an algorithm like was done in this project. 
-
-
-
+![All midrange](screenshots/all_midrange.png)
