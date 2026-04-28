@@ -227,6 +227,16 @@ applied-ai-system-final/
 
 ---
 
+## Sources & Credits
+
+| Source | Role |
+|---|---|
+| [CodePath AI 110](https://www.codepath.org) | Course framework and original Module 3 Music Recommender project this work extends |
+| [Anthropic Claude](https://www.anthropic.com) | AI explanation layer (`ai_explainer.py`) powered by the Claude API; also used as an AI coding assistant throughout development |
+| [Spotify Tracks Dataset — Kaggle](https://www.kaggle.com/datasets/maharshipandya/-spotify-tracks-dataset) | 114,000-track song catalog with audio features (energy, valence, danceability, acousticness, tempo) used to replace the original 20-song CSV |
+
+---
+
 ## Screenshots
 
 ![Initial data flow](screenshots/initial-data-flow.png)
