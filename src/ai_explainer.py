@@ -1,12 +1,12 @@
 """
-RAG-based explanation layer using the Claude API.
+RAG-based explanation layer using the Google Gemini API.
 
 Given a user profile and a ranked list of recommended songs, this module
-builds a context document from the retrieved songs and asks Claude to
+builds a context document from the retrieved songs and asks Gemini to
 generate a natural-language explanation of why those songs were chosen.
 
-Requires ANTHROPIC_API_KEY in the environment.  If the key is absent the
-module degrades gracefully and returns a plain-text fallback.
+Requires GEMINI_API_KEY in the environment (or .env file).
+Degrades gracefully to a plain-text fallback if the key is absent.
 """
 
 import os
@@ -15,10 +15,9 @@ from typing import Dict, List, Tuple
 
 from dotenv import load_dotenv
 
-# Load .env from the project root (one level above src/)
 load_dotenv(Path(__file__).parent.parent / ".env")
 
-_MODEL = "claude-haiku-4-5-20251001"
+_MODEL = "gemini-2.0-flash-lite"
 
 
 def _build_context(user_prefs: Dict, recommendations: List[Tuple]) -> str:
@@ -50,17 +49,17 @@ def explain_recommendations(
     model: str = _MODEL,
 ) -> str:
     """
-    Call Claude with the retrieved song context and return a natural-language
-    explanation.  Falls back to a plain summary if no API key is set.
+    Call Gemini with the retrieved song context and return a natural-language
+    explanation. Falls back to a plain summary if no API key is set.
     """
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = os.environ.get("GEMINI_API_KEY", "")
     if not api_key:
         return _fallback_explanation(recommendations)
 
     try:
-        import anthropic
-        client = anthropic.Anthropic(api_key=api_key)
+        from google import genai
 
+        client = genai.Client(api_key=api_key)
         context = _build_context(user_prefs, recommendations)
         prompt = (
             "You are a music recommendation assistant. Using ONLY the information "
@@ -70,12 +69,8 @@ def explain_recommendations(
             f"{context}"
         )
 
-        response = client.messages.create(
-            model=model,
-            max_tokens=300,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return response.content[0].text.strip()
+        response = client.models.generate_content(model=model, contents=prompt)
+        return response.text.strip()
 
     except Exception as e:
         return f"[AI explanation unavailable: {e}]\n" + _fallback_explanation(recommendations)
