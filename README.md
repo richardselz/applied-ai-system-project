@@ -6,6 +6,13 @@ This project extends the **Module 3 Music Recommender Simulation** — a weighte
 
 ---
 
+## Demo
+
+![System walkthrough](screenshots/demo.gif)
+*Recorded with [Kap](https://getkap.co)*
+
+---
+
 ## New AI Features
 
 | Feature | File | Rubric Item |
